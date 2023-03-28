@@ -1,0 +1,61 @@
+{
+  "name": "@flexiblepersistence/elastic",
+  "version": "0.0.0",
+  "description": "A Elastic implementation for Flexible Persistence's PersistenceAdapter",
+  "main": "dist/source/index.js",
+  "keywords": [
+    "elastic",
+    "flexiblepersistence",
+    "nodejs",
+    "typescript",
+    "javascript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "postinstall": "",
+    "prepublish": "",
+    "build": "rm -rf dist/ && tsc",
+    "test": "jest --passWithNoTests --ci --verbose --forceExit --detectOpenHandles",
+    "integration": "jest -i -c integration.config.json --passWithNoTests  --ci --verbose --forceExit --detectOpenHandles",
+    "prestart": "",
+    "tsc": "tsc",
+    "tsc:w": "tsc -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Judahh/flexiblePersistence.git"
+  },
+  "author": "Judah Holanda Correia Lima <judahholanda7@gmail.com> (https://judahh.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Judahh/flexiblePersistence/issues"
+  },
+  "homepage": "https://github.com/Judahh/flexiblePersistence#readme",
+  "dependencies": {
+    "journaly": "latest",
+    "es6": "npm:@elastic/elasticsearch@6",
+    "es7": "npm:@elastic/elasticsearch@7",
+    "es8": "npm:@elastic/elasticsearch@8"
+  },
+  "devDependencies": {
+    "@types/jest": "latest",
+    "@types/node": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "mongoose": "latest",
+    "eslint": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-filenames": "latest",
+    "eslint-plugin-import": "latest",
+    "eslint-plugin-prettier": "latest",
+    "@flexiblepersistence/default-initializer": "latest",
+    "flexiblepersistence": "latest",
+    "jest": "latest",
+    "prettier": "latest",
+    "reflect-metadata": "latest",
+    "ts-jest": "latest",
+    "typescript": "latest"
+  }
+}
