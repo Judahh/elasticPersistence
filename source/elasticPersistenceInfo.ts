@@ -23,13 +23,15 @@ export class ElasticPersistenceInfo extends PersistenceInfo {
     journaly: SenderReceiver<any>,
     elasticOptions?: ClientOptions6 | ClientOptions7 | ClientOptions8
   ) {
-    info = info.connectionType
-      ? info
-      : new PersistenceInfo({ ...info, connectionType: 'https' }, journaly);
     super(info, journaly);
     this.elasticOptions = {
       ...{
-        node: info.host + ':' + (info.port || 9200),
+        node:
+          (info.connectionType || 'https') +
+          '://' +
+          info.host +
+          ':' +
+          (info.port || 9200),
         auth: {
           username: info.username,
           password: info.password,
@@ -39,5 +41,6 @@ export class ElasticPersistenceInfo extends PersistenceInfo {
       },
       ...(elasticOptions || {}),
     } as ClientOptions6 | ClientOptions7 | ClientOptions8;
+    console.log(this.elasticOptions);
   }
 }

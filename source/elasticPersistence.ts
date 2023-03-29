@@ -79,7 +79,23 @@ export class ElasticPersistence implements IPersistence {
     });
   }
 
+  getKey(model: string): string {
+    return model[0].toLowerCase() + model.slice(1);
+  }
+
   setElement(element: { [name: string]: BaseModelDefault }) {
+    for (const key in element) {
+      if (Object.prototype.hasOwnProperty.call(element, key)) {
+        const e = element[key];
+        const newKey = this.getKey(key);
+        if (newKey !== key) {
+          element[newKey] = e;
+          // @ts-ignore
+          element[key] = undefined;
+          delete element[key];
+        }
+      }
+    }
     this.element = element;
   }
 
@@ -109,11 +125,28 @@ export class ElasticPersistence implements IPersistence {
     return realInput;
   }
 
-  private makePromise(
+  private async makePromise(
     input: IInput<unknown, unknown>,
     output: any
   ): Promise<IOutput<unknown, unknown, unknown>> {
-    return output;
+    const key = this.getKey(input.scheme) || input.scheme;
+    let hits = output.body.hits.hits;
+    hits = hits.map((value) => {
+      return {
+        ...value,
+        _index: input.scheme,
+        _source: this.element[key]?.parse(value._source) || value._source,
+      };
+    });
+    const result = input.single ? hits[0] : hits;
+    const r = await {
+      receivedItem: result,
+      result,
+      selectedItem: input.selectedItem,
+      sentItem: input.item,
+    };
+    console.log(r);
+    return r as unknown as Promise<IOutput<unknown, unknown, unknown>>;
   }
   other(
     input: IInput<unknown, unknown>
@@ -126,21 +159,43 @@ export class ElasticPersistence implements IPersistence {
   }
 
   toBulk(scheme: string, input: any[], type: string): any[] {
+    // TODO: size and query
+    const key = this.getKey(scheme) || scheme;
     const body: any[] = [];
     for (const i of input) {
       const method = {};
       method[type] = {
-        _index: scheme,
+        _index: this.element[key]?.getName() || key,
         _type: '_doc',
         // _id: i._id,
       };
+      delete i._index;
+      delete i._type;
       body.push(method, i);
     }
+    console.log('Bulk body:', body);
+    return body;
+  }
+
+  toBody(model: string, input: any): any {
+    // TODO: size and query
+    const key = this.getKey(model) || model;
+    const type = input._type || this.element[key]?.getType() || '_doc';
+    delete input._type;
+    const body = {
+      index: this.element[key]?.getName() || key,
+      type: type,
+      body: input,
+    };
+    console.log('Body:', body);
     return body;
   }
 
   parse(model: string, input: any): any {
-    this.element[model] ? this.element[model].parse(input) : input;
+    const key = this.getKey(model) || model;
+    const p = this.element[key] ? this.element[key].parse(input) : input;
+    console.log('PARSE:', p);
+    return p;
   }
 
   async create(
@@ -165,10 +220,12 @@ export class ElasticPersistence implements IPersistence {
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.index(this.parse(input.scheme, input.item))
+          await this.client.index(
+            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+          )
         );
   }
-  read(
+  async read(
     input: IInputRead,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     _transaction?: ITransaction
@@ -178,15 +235,19 @@ export class ElasticPersistence implements IPersistence {
       ? this.makePromise(
           input,
           // @ts-ignore
-          await this.client.search(this.parse(input.scheme, input.item))
+          await this.client.search(
+            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+          )
         )
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.search(this.parse(input.scheme, input.item))
-        )[0];
+          await this.client.search(
+            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+          )
+        );
   }
-  update(
+  async update(
     input: IInputUpdate<unknown>,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     _transaction?: ITransaction
@@ -206,10 +267,12 @@ export class ElasticPersistence implements IPersistence {
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.update(this.parse(input.scheme, input.item))
+          await this.client.update(
+            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+          )
         );
   }
-  delete(
+  async delete(
     input: IInputDelete,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     _transaction?: ITransaction
@@ -231,7 +294,9 @@ export class ElasticPersistence implements IPersistence {
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.delete(this.parse(input.scheme, input.item))
+          await this.client.delete(
+            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+          )
         );
   }
 

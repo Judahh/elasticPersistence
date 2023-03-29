@@ -4,6 +4,10 @@ export default class BaseModelDefault extends Default {
   protected attributes = {};
   protected aliasFields = {};
 
+  generateType() {
+    this.setType('_doc');
+  }
+
   getAttributes() {
     return this.attributes;
   }
