@@ -169,6 +169,7 @@ export class ElasticPersistence implements IPersistence {
     input: any[],
     selectedInput: any[],
     type: string,
+    // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     options?: { page?: number; pageSize?: number }
   ): any[] {
     // TODO: from/size and query
@@ -371,7 +372,6 @@ export class ElasticPersistence implements IPersistence {
   generatePageOptions(
     input: IInputCreate | IInputRead | IInputUpdate | IInputDelete
   ): { page?: number; pageSize?: number } {
-    const pageOptions = {};
     const options =
       input.eventOptions || input.options || input.additionalOptions || {};
     options.pageSize = options.pageSize || options.pagesize;
@@ -379,7 +379,7 @@ export class ElasticPersistence implements IPersistence {
     if (options.pageSize) options.pageSize = Number(options.pageSize);
     if (options.page) options.page = Number(options.page);
     if (options.pageSize && !options.page) options.page = 0;
-    return pageOptions;
+    return options;
   }
 
   async read(
