@@ -73,16 +73,34 @@ export default class BaseModelDefault extends Default {
           const noFilterKey = splitFilters.reduce((acc, cur) => {
             acc = acc || '';
             if (
-              !['$gte', '$lte', '$gt', '$lt', '$ne', '$nin', '$in'].includes(
-                cur
-              )
+              ![
+                '$gte',
+                '$lte',
+                '$gt',
+                '$lt',
+                '$ne',
+                '$nin',
+                '$in',
+                '$regex',
+                '$wildcard',
+              ].includes(cur)
             ) {
-              acc += '.' + cur;
+              acc = acc ? '.' + cur : cur;
             }
             return acc;
           }, '');
           const firstFilter = splitFilters.find((f) =>
-            ['$gte', '$lte', '$gt', '$lt', '$ne', '$nin', '$in'].includes(f)
+            [
+              '$gte',
+              '$lte',
+              '$gt',
+              '$lt',
+              '$ne',
+              '$nin',
+              '$in',
+              '$regex',
+              '$wildcard',
+            ].includes(f)
           );
           let newKey = this.getNestedKey(noFilterKey, aliasFields);
           newKey = newKey || key;

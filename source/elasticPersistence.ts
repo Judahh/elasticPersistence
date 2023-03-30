@@ -223,7 +223,7 @@ export class ElasticPersistence implements IPersistence {
   addTerms(query, key, element, within = 'must') {
     if (Array.isArray(element)) {
       const elementWithKey = {};
-      elementWithKey[key] = element;
+      elementWithKey[key.replace('.$in', '')] = element;
       const t = { terms: elementWithKey };
       query[within].push(t);
     } else {
@@ -234,6 +234,22 @@ export class ElasticPersistence implements IPersistence {
         key.includes('.$lte')
       ) {
         this.constAddRange(query, key, element, 'must');
+      } else if (key.includes('.$regex') || key.includes('.$wildcard')) {
+        const e = element;
+        try {
+          element = JSON.parse(e);
+        } catch (error) {
+          element = e;
+        }
+        const elementWithKey = {};
+        elementWithKey[key.replace('.$regex', '').replace('.$wildcard', '')] =
+          element;
+        const v =
+          typeof elementWithKey == 'object'
+            ? elementWithKey
+            : { value: elementWithKey };
+        const t = key.includes('.$wildcard') ? { wildcard: v } : { regexp: v };
+        query[within].push(t);
       } else {
         const elementWithKey = {};
         elementWithKey[key] = element;
