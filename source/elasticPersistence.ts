@@ -168,9 +168,11 @@ export class ElasticPersistence implements IPersistence {
     scheme: string,
     input: any[],
     selectedInput: any[],
-    type: string
+    type: string,
+    options?: { page?: number; pageSize?: number }
   ): any[] {
     // TODO: from/size and query
+    // headers page and pageSize/pagesize
     const key = this.getKey(scheme) || scheme;
     const body: any[] = [];
     for (const i of input) {
@@ -287,8 +289,14 @@ export class ElasticPersistence implements IPersistence {
     return query;
   }
 
-  toBody(model: string, input: any, selectedInput?: any): any {
+  toBody(
+    model: string,
+    input: any,
+    selectedInput?: any,
+    options?: { page?: number; pageSize?: number }
+  ): any {
     // TODO: from/size and query
+    // headers page and pageSize/pagesize
     const key = this.getKey(model) || model;
     const type = input._type || this.element[key]?.getType() || '_doc';
     delete input._type;
@@ -303,6 +311,10 @@ export class ElasticPersistence implements IPersistence {
           }
         : input,
     };
+    if (options?.pageSize) {
+      body['from'] = (options.page || 0) * options.pageSize;
+      body['size'] = options.pageSize;
+    }
     // console.log('Body:', body);
     return body;
   }
@@ -337,7 +349,8 @@ export class ElasticPersistence implements IPersistence {
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
               this.parse(input.scheme, input.selectedItem),
-              'index'
+              'index',
+              this.generatePageOptions(input)
             )
           )
         )
@@ -348,11 +361,27 @@ export class ElasticPersistence implements IPersistence {
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem)
+              this.parse(input.scheme, input.selectedItem),
+              this.generatePageOptions(input)
             )
           )
         );
   }
+
+  generatePageOptions(
+    input: IInputCreate | IInputRead | IInputUpdate | IInputDelete
+  ): { page?: number; pageSize?: number } {
+    const pageOptions = {};
+    const options =
+      input.eventOptions || input.options || input.additionalOptions || {};
+    options.pageSize = options.pageSize || options.pagesize;
+    options.page = options.page || options.pageNumber || options.pagenumber;
+    if (options.pageSize) options.pageSize = Number(options.pageSize);
+    if (options.page) options.page = Number(options.page);
+    if (options.pageSize && !options.page) options.page = 0;
+    return pageOptions;
+  }
+
   async read(
     input: IInputRead,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
@@ -367,7 +396,8 @@ export class ElasticPersistence implements IPersistence {
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem)
+              this.parse(input.scheme, input.selectedItem),
+              this.generatePageOptions(input)
             )
           )
         )
@@ -378,7 +408,8 @@ export class ElasticPersistence implements IPersistence {
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem)
+              this.parse(input.scheme, input.selectedItem),
+              this.generatePageOptions(input)
             )
           )
         );
@@ -397,7 +428,8 @@ export class ElasticPersistence implements IPersistence {
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
               this.parse(input.scheme, input.selectedItem),
-              'update'
+              'update',
+              this.generatePageOptions(input)
             )
           )
         )
@@ -408,7 +440,8 @@ export class ElasticPersistence implements IPersistence {
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem)
+              this.parse(input.scheme, input.selectedItem),
+              this.generatePageOptions(input)
             )
           )
         );
@@ -429,7 +462,8 @@ export class ElasticPersistence implements IPersistence {
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
               this.parse(input.scheme, input.selectedItem),
-              'delete'
+              'delete',
+              this.generatePageOptions(input)
             )
           )
         )
@@ -440,7 +474,8 @@ export class ElasticPersistence implements IPersistence {
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem)
+              this.parse(input.scheme, input.selectedItem),
+              this.generatePageOptions(input)
             )
           )
         );
