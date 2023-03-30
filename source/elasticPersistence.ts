@@ -130,15 +130,21 @@ export class ElasticPersistence implements IPersistence {
     output: any
   ): Promise<IOutput<unknown, unknown, unknown>> {
     const key = this.getKey(input.scheme) || input.scheme;
-    let hits = output.body.hits.hits;
-    hits = hits.map((value) => {
+    let hits =
+      output.body?.hits?.hits || output.body?.items || output.body || output;
+    hits = hits?.map?.((value) => {
       return {
         ...value,
         _index: input.scheme,
-        _source: this.element[key]?.parse(value._source) || value._source,
+        _source:
+          this.element[key]?.reverseParse(value._source) || value._source,
       };
-    });
-    const result = input.single ? hits[0] : hits;
+    }) || {
+      ...hits,
+      _index: input.scheme,
+      _source: this.element[key]?.reverseParse(hits._source) || hits._source,
+    };
+    const result = input.single ? (Array.isArray(hits) ? hits[0] : hits) : hits;
     const r = await {
       receivedItem: result,
       result,
@@ -158,8 +164,13 @@ export class ElasticPersistence implements IPersistence {
     });
   }
 
-  toBulk(scheme: string, input: any[], type: string): any[] {
-    // TODO: size and query
+  toBulk(
+    scheme: string,
+    input: any[],
+    selectedInput: any[],
+    type: string
+  ): any[] {
+    // TODO: from/size and query
     const key = this.getKey(scheme) || scheme;
     const body: any[] = [];
     for (const i of input) {
@@ -177,15 +188,104 @@ export class ElasticPersistence implements IPersistence {
     return body;
   }
 
-  toBody(model: string, input: any): any {
-    // TODO: size and query
+  constAddRange(query, key, element, within = 'must') {
+    if (
+      key.includes('.$gt') ||
+      key.includes('.$gte') ||
+      key.includes('.$lt') ||
+      key.includes('.$lte')
+    ) {
+      const currentKey = key
+        .replace('.$gte', '')
+        .replace('.$gt', '')
+        .replace('.$lte', '')
+        .replace('.$lt', '');
+      let currentRange = query[within].find(
+        (value) => value?.range?.[currentKey]
+      );
+      if (!currentRange) {
+        currentRange = { range: {} };
+        currentRange.range[currentKey] = {};
+        query[within].push(currentRange);
+      }
+      if (key.includes('.$gte')) {
+        currentRange.range[currentKey].gte = element;
+      } else if (key.includes('.$gt')) {
+        currentRange.range[currentKey].gt = element;
+      } else if (key.includes('.$lte')) {
+        currentRange.range[currentKey].lte = element;
+      } else if (key.includes('.$lt')) {
+        currentRange.range[currentKey].lt = element;
+      }
+    }
+  }
+
+  addTerms(query, key, element, within = 'must') {
+    if (Array.isArray(element)) {
+      const elementWithKey = {};
+      elementWithKey[key] = element;
+      const t = { terms: elementWithKey };
+      query[within].push(t);
+    } else {
+      if (
+        key.includes('.$gt') ||
+        key.includes('.$gte') ||
+        key.includes('.$lt') ||
+        key.includes('.$lte')
+      ) {
+        this.constAddRange(query, key, element, 'must');
+      } else {
+        const elementWithKey = {};
+        elementWithKey[key] = element;
+        const t = { term: elementWithKey };
+        query[within].push(t);
+      }
+    }
+  }
+
+  toBoolQuery(input: any): any {
+    const query: any = {};
+    for (const key in input) {
+      if (Object.prototype.hasOwnProperty.call(input, key)) {
+        const element = input[key];
+        if (key.includes('.$ne') || key.includes('.$nin')) {
+          query.must_not = query.must_not || [];
+          this.addTerms(
+            query,
+            key.replace('.$ne', '').replace('.$nin', ''),
+            element,
+            'must_not'
+          );
+        } else {
+          query.must = query.must || [];
+          this.addTerms(query, key, element, 'must');
+        }
+      }
+    }
+    if (query.must?.length === 0) delete query.must;
+    if (query.must_not?.length === 0) delete query.must_not;
+    console.log('Query:');
+    if (query.must) query.must.forEach((value) => console.log(value));
+    if (query.must_not) query.must_not.forEach((value) => console.log(value));
+    console.log('Query end.');
+    return query;
+  }
+
+  toBody(model: string, input: any, selectedInput?: any): any {
+    // TODO: from/size and query
     const key = this.getKey(model) || model;
     const type = input._type || this.element[key]?.getType() || '_doc';
     delete input._type;
+    console.log('selectedInput:', selectedInput);
     const body = {
       index: this.element[key]?.getName() || key,
       type: type,
-      body: input,
+      body: selectedInput
+        ? {
+            script: input && Object.keys(input).length > 0 ? input : undefined,
+            query: { bool: this.toBoolQuery(selectedInput) },
+          }
+        : input,
     };
     console.log('Body:', body);
     return body;
@@ -195,6 +295,13 @@ export class ElasticPersistence implements IPersistence {
     const key = this.getKey(model) || model;
     const p = this.element[key] ? this.element[key].parse(input) : input;
     console.log('PARSE:', p);
+    return p;
+  }
+
+  reverseParse(model: string, input: any): any {
+    const key = this.getKey(model) || model;
+    const p = this.element[key] ? this.element[key].reverseParse(input) : input;
+    console.log('REPARSE:', p);
     return p;
   }
 
@@ -213,6 +320,7 @@ export class ElasticPersistence implements IPersistence {
             this.toBulk(
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
+              this.parse(input.scheme, input.selectedItem),
               'index'
             )
           )
@@ -221,7 +329,11 @@ export class ElasticPersistence implements IPersistence {
           input,
           // @ts-ignore
           await this.client.index(
-            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+            this.toBody(
+              input.scheme,
+              this.parse(input.scheme, input.item),
+              this.parse(input.scheme, input.selectedItem)
+            )
           )
         );
   }
@@ -236,14 +348,22 @@ export class ElasticPersistence implements IPersistence {
           input,
           // @ts-ignore
           await this.client.search(
-            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+            this.toBody(
+              input.scheme,
+              this.parse(input.scheme, input.item),
+              this.parse(input.scheme, input.selectedItem)
+            )
           )
         )
       : this.makePromise(
           input,
           // @ts-ignore
           await this.client.search(
-            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+            this.toBody(
+              input.scheme,
+              this.parse(input.scheme, input.item),
+              this.parse(input.scheme, input.selectedItem)
+            )
           )
         );
   }
@@ -260,6 +380,7 @@ export class ElasticPersistence implements IPersistence {
             this.toBulk(
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
+              this.parse(input.scheme, input.selectedItem),
               'update'
             )
           )
@@ -268,7 +389,11 @@ export class ElasticPersistence implements IPersistence {
           input,
           // @ts-ignore
           await this.client.update(
-            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+            this.toBody(
+              input.scheme,
+              this.parse(input.scheme, input.item),
+              this.parse(input.scheme, input.selectedItem)
+            )
           )
         );
   }
@@ -287,6 +412,7 @@ export class ElasticPersistence implements IPersistence {
             this.toBulk(
               input.scheme,
               input.item.map((i) => this.parse(input.scheme, i)),
+              this.parse(input.scheme, input.selectedItem),
               'delete'
             )
           )
@@ -295,7 +421,11 @@ export class ElasticPersistence implements IPersistence {
           input,
           // @ts-ignore
           await this.client.delete(
-            this.toBody(input.scheme, this.parse(input.scheme, input.item))
+            this.toBody(
+              input.scheme,
+              this.parse(input.scheme, input.item),
+              this.parse(input.scheme, input.selectedItem)
+            )
           )
         );
   }
