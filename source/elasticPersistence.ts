@@ -151,7 +151,7 @@ export class ElasticPersistence implements IPersistence {
       selectedItem: input.selectedItem,
       sentItem: input.item,
     };
-    console.log(r);
+    // console.log(r);
     return r as unknown as Promise<IOutput<unknown, unknown, unknown>>;
   }
   other(
@@ -184,7 +184,7 @@ export class ElasticPersistence implements IPersistence {
       delete i._type;
       body.push(method, i);
     }
-    console.log('Bulk body:', body);
+    // console.log('Bulk body:', body);
     return body;
   }
 
@@ -280,10 +280,10 @@ export class ElasticPersistence implements IPersistence {
     }
     if (query.must?.length === 0) delete query.must;
     if (query.must_not?.length === 0) delete query.must_not;
-    console.log('Query:');
-    if (query.must) query.must.forEach((value) => console.log(value));
-    if (query.must_not) query.must_not.forEach((value) => console.log(value));
-    console.log('Query end.');
+    // console.log('Query:');
+    // if (query.must) query.must.forEach((value) => console.log(value));
+    // if (query.must_not) query.must_not.forEach((value) => console.log(value));
+    // console.log('Query end.');
     return query;
   }
 
@@ -292,7 +292,7 @@ export class ElasticPersistence implements IPersistence {
     const key = this.getKey(model) || model;
     const type = input._type || this.element[key]?.getType() || '_doc';
     delete input._type;
-    console.log('selectedInput:', selectedInput);
+    // console.log('selectedInput:', selectedInput);
     const body = {
       index: this.element[key]?.getName() || key,
       type: type,
@@ -303,21 +303,21 @@ export class ElasticPersistence implements IPersistence {
           }
         : input,
     };
-    console.log('Body:', body);
+    // console.log('Body:', body);
     return body;
   }
 
   parse(model: string, input: any): any {
     const key = this.getKey(model) || model;
     const p = this.element[key] ? this.element[key].parse(input) : input;
-    console.log('PARSE:', p);
+    // console.log('PARSE:', p);
     return p;
   }
 
   reverseParse(model: string, input: any): any {
     const key = this.getKey(model) || model;
     const p = this.element[key] ? this.element[key].reverseParse(input) : input;
-    console.log('REPARSE:', p);
+    // console.log('REPARSE:', p);
     return p;
   }
 
