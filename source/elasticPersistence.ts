@@ -137,12 +137,17 @@ export class ElasticPersistence implements IPersistence {
         ...value,
         _index: input.scheme,
         _source:
-          this.element[key]?.reverseParse(value._source) || value._source,
+          this.element[key]?.reverseParse(
+            value?._source?.script || value?._source
+          ) || value?._source,
       };
     }) || {
       ...hits,
       _index: input.scheme,
-      _source: this.element[key]?.reverseParse(hits._source) || hits._source,
+      _source:
+        this.element[key]?.reverseParse(
+          hits?._source?.script || hits?._source
+        ) || hits?._source,
     };
     const result = input.single ? (Array.isArray(hits) ? hits[0] : hits) : hits;
     const r = await {
@@ -305,12 +310,14 @@ export class ElasticPersistence implements IPersistence {
     const body = {
       index: this.element[key]?.getName() || key,
       type: type,
-      body: selectedInput
-        ? {
-            script: input && Object.keys(input).length > 0 ? input : undefined,
-            query: { bool: this.toBoolQuery(selectedInput) },
-          }
-        : input,
+      body:
+        selectedInput && Object.keys(selectedInput).length > 0
+          ? {
+              script:
+                input && Object.keys(input).length > 0 ? input : undefined,
+              query: { bool: this.toBoolQuery(selectedInput) },
+            }
+          : input,
     };
     if (options?.pageSize) {
       body['from'] = (options.page || 0) * options.pageSize;
