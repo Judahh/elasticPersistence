@@ -176,7 +176,7 @@ export class ElasticPersistence implements IPersistence {
     type: string,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     options?: { page?: number; pageSize?: number }
-  ): any[] {
+  ): { body: any[] } {
     // TODO: from/size and query
     // headers page and pageSize/pagesize
     const key = this.getKey(scheme) || scheme;
@@ -193,7 +193,7 @@ export class ElasticPersistence implements IPersistence {
       body.push(method, i);
     }
     // console.log('Bulk body:', body);
-    return body;
+    return { body };
   }
 
   constAddRange(query, key, element, within = 'must') {
