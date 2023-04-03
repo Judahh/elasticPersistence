@@ -261,7 +261,7 @@ export class ElasticPersistence implements IPersistence {
       } else {
         const elementWithKey = {};
         elementWithKey[key] = element;
-        const t = { term: elementWithKey };
+        const t = { match: elementWithKey };
         query[within].push(t);
       }
     }
