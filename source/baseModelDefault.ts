@@ -11,7 +11,7 @@ export default class BaseModelDefault extends Default {
   }
 
   getName(index?: number): string {
-    return Array.isArray(this.attributes) && index != undefined && this.names
+    return Array.isArray(this.names) && index != undefined && this.names
       ? this.names[index]
       : this.name;
   }
