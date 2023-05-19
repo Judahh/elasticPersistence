@@ -11,12 +11,12 @@ import {
 
 import { ObjectId } from 'mongoose';
 
-import { SequelizePersistence, Utils } from '../../source';
+import { ElasticPersistence } from '../../source';
 import { Journaly, SenderReceiver } from 'journaly';
 import { eventInfo, readInfo } from './databaseInfos';
 import { Pool } from 'pg';
 
-import { SequelizePersistenceInfo } from '../../source/sequelizePersistenceInfo';
+import { ElasticPersistenceInfo } from '../../source/elasticPersistenceInfo';
 
 import ObjectModel from './objectModel';
 
@@ -28,23 +28,21 @@ test('add and read array and find object', async () => {
   const eventDatabase = new MongoPersistence(
     new PersistenceInfo(eventInfo, journaly)
   );
-  const database = new SequelizePersistenceInfo(readInfo, journaly, {
-    logging: false,
-  });
+  const database = new ElasticPersistenceInfo(readInfo, journaly);
   write = eventDatabase;
-  read = new SequelizePersistence(database, { object: new ObjectModel() });
-  // read.getSequelize().define('Object', initObject, {
+  read = new ElasticPersistence(database, { object: new ObjectModel() });
+  // read.getElastic().define('Object', initObject, {
   //   timestamps: false,
   // });
 
   const pool = new Pool(database);
-  await Utils.init(pool);
+  // await Utils.init(pool);
   const handler = new Handler(write, read);
   await handler.getWrite()?.clear();
   const obj = {};
   obj['test'] = 'test';
   try {
-    await read.getSequelize().models.Object.sync({ force: true });
+    await read.getElastic().models.Object.sync({ force: true });
     // console.log('TEST00');
     const persistencePromise = (await handler.addEvent(
       new Event({ operation: Operation.create, name: 'Object', content: obj })
@@ -262,7 +260,7 @@ test('add and read array and find object', async () => {
     // expect(persistencePromise7.result.rowCount).toBe(0);
     await handler.getWrite()?.clear();
     await write.close();
-    await Utils.dropTables(pool);
+    // await Utils.dropTables(pool);
     expect(error).toBe(null);
   }
   await handler.addEvent(
@@ -270,7 +268,7 @@ test('add and read array and find object', async () => {
   );
   await handler.getWrite()?.clear();
   await write.close();
-  await Utils.dropTables(pool);
+  // await Utils.dropTables(pool);
 });
 
 test('add array and read elements, update and delete object', async () => {
@@ -278,21 +276,19 @@ test('add array and read elements, update and delete object', async () => {
   const eventDatabase = new MongoPersistence(
     new PersistenceInfo(eventInfo, journaly)
   );
-  const database = new SequelizePersistenceInfo(readInfo, journaly, {
-    logging: false,
-  });
+  const database = new ElasticPersistenceInfo(readInfo, journaly);
   write = eventDatabase;
-  read = new SequelizePersistence(database, { object: new ObjectModel() });
-  // read.getSequelize().define('Object', initObject, {
+  read = new ElasticPersistence(database, { object: new ObjectModel() });
+  // read.getElastic().define('Object', initObject, {
   //   timestamps: false,
   // });
   const pool = new Pool(database);
-  await Utils.init(pool);
+  // await Utils.init(pool);
   const handler = new Handler(write, read);
   const obj00 = { test: 'test' };
   const obj01 = { test: 'test2' };
   try {
-    await read.getSequelize().models.Object.sync({ force: true });
+    await read.getElastic().models.Object.sync({ force: true });
     // console.log('TEST00');
     const persistencePromise = (await handler.addEvent(
       new Event({
@@ -427,7 +423,7 @@ test('add array and read elements, update and delete object', async () => {
     // expect(persistencePromise7.result.rowCount).toBe(0);
     await handler.getWrite()?.clear();
     await write.close();
-    await Utils.end(pool);
+    // await Utils.end(pool);
     expect(error).toBe(null);
   }
   await handler.addEvent(
@@ -435,5 +431,5 @@ test('add array and read elements, update and delete object', async () => {
   );
   await handler.getWrite()?.clear();
   await write.close();
-  await Utils.end(pool);
+  // await Utils.end(pool);
 });
