@@ -127,7 +127,8 @@ export class ElasticPersistence implements IPersistence {
 
   private async makePromise(
     input: IInput<unknown, unknown>,
-    output: any
+    output: any,
+    selected?: number
   ): Promise<IOutput<unknown, unknown, unknown>> {
     const key = this.getKey(input.scheme) || input.scheme;
     let hits =
@@ -138,7 +139,9 @@ export class ElasticPersistence implements IPersistence {
         _index: input.scheme,
         _source:
           this.element[key]?.reverseParse(
-            value?._source?.script || value?._source
+            value?._source?.script || value?._source,
+            undefined,
+            selected
           ) || value?._source,
       };
     }) || {
@@ -146,7 +149,9 @@ export class ElasticPersistence implements IPersistence {
       _index: input.scheme,
       _source:
         this.element[key]?.reverseParse(
-          hits?._source?.script || hits?._source
+          hits?._source?.script || hits?._source,
+          undefined,
+          selected
         ) || hits?._source,
     };
     const result = input.single ? (Array.isArray(hits) ? hits[0] : hits) : hits;
@@ -175,7 +180,8 @@ export class ElasticPersistence implements IPersistence {
     selectedInput: any[],
     type: string,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-    options?: { page?: number; pageSize?: number }
+    options?: { page?: number; pageSize?: number },
+    index?: number
   ): { body: any[] } {
     // TODO: from/size and query
     // headers page and pageSize/pagesize
@@ -184,7 +190,7 @@ export class ElasticPersistence implements IPersistence {
     for (const i of input) {
       const method = {};
       method[type] = {
-        _index: this.element[key]?.getName() || key,
+        _index: this.element[key]?.getName(index) || key,
         _type: '_doc',
         // _id: i._id,
       };
@@ -299,7 +305,8 @@ export class ElasticPersistence implements IPersistence {
     model: string,
     input: any,
     selectedInput?: any,
-    options?: { page?: number; pageSize?: number }
+    options?: { page?: number; pageSize?: number },
+    index?: number
   ): any {
     // TODO: from/size and query
     // headers page and pageSize/pagesize
@@ -308,7 +315,7 @@ export class ElasticPersistence implements IPersistence {
     delete input._type;
     // console.log('selectedInput:', selectedInput);
     const body = {
-      index: this.element[key]?.getName() || key,
+      index: this.element[key]?.getName(index) || key,
       type: type,
       body:
         selectedInput && Object.keys(selectedInput).length > 0
@@ -327,18 +334,32 @@ export class ElasticPersistence implements IPersistence {
     return body;
   }
 
-  parse(model: string, input: any): any {
+  parse(model: string, input: any, index?: number): any {
     const key = this.getKey(model) || model;
-    const p = this.element[key] ? this.element[key].parse(input) : input;
+    const p = this.element[key]
+      ? this.element[key].parse(input, undefined, index)
+      : input;
     // console.log('PARSE:', p);
     return p;
   }
 
-  reverseParse(model: string, input: any): any {
+  reverseParse(model: string, input: any, index?: number): any {
     const key = this.getKey(model) || model;
-    const p = this.element[key] ? this.element[key].reverseParse(input) : input;
+    const p = this.element[key]
+      ? this.element[key].reverseParse(input, undefined, index)
+      : input;
     // console.log('REPARSE:', p);
     return p;
+  }
+
+  getSelected(input: IInput<any, any>) {
+    const key = this.getKey(input.scheme) || input.scheme;
+    const element = this.element[key];
+    const selector = element.getSelector();
+    const selected: number | undefined = selector
+      ? (input.selectedItem as any)?.[selector] || 0
+      : undefined;
+    return selected;
   }
 
   async create(
@@ -348,6 +369,8 @@ export class ElasticPersistence implements IPersistence {
   ): Promise<IOutput<unknown, unknown, unknown>> {
     // console.log('CREATE:', input);
 
+    const selected = this.getSelected(input);
+
     return Array.isArray(input.item)
       ? this.makePromise(
           input,
@@ -355,12 +378,14 @@ export class ElasticPersistence implements IPersistence {
           await this.client.bulk(
             this.toBulk(
               input.scheme,
-              input.item.map((i) => this.parse(input.scheme, i)),
-              this.parse(input.scheme, input.selectedItem),
+              input.item.map((i) => this.parse(input.scheme, i, selected)),
+              this.parse(input.scheme, input.selectedItem, selected),
               'index',
-              this.generatePageOptions(input)
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         )
       : this.makePromise(
           input,
@@ -368,11 +393,13 @@ export class ElasticPersistence implements IPersistence {
           await this.client.index(
             this.toBody(
               input.scheme,
-              this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem),
-              this.generatePageOptions(input)
+              this.parse(input.scheme, input.item, selected),
+              this.parse(input.scheme, input.selectedItem, selected),
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         );
   }
 
@@ -395,6 +422,7 @@ export class ElasticPersistence implements IPersistence {
     _transaction?: ITransaction
   ): Promise<IOutput<unknown, unknown, unknown>> {
     // console.log('read', input);
+    const selected = this.getSelected(input);
     return Array.isArray(input.item)
       ? this.makePromise(
           input,
@@ -402,11 +430,13 @@ export class ElasticPersistence implements IPersistence {
           await this.client.search(
             this.toBody(
               input.scheme,
-              this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem),
-              this.generatePageOptions(input)
+              this.parse(input.scheme, input.item, selected),
+              this.parse(input.scheme, input.selectedItem, selected),
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         )
       : this.makePromise(
           input,
@@ -414,11 +444,13 @@ export class ElasticPersistence implements IPersistence {
           await this.client.search(
             this.toBody(
               input.scheme,
-              this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem),
-              this.generatePageOptions(input)
+              this.parse(input.scheme, input.item, selected),
+              this.parse(input.scheme, input.selectedItem, selected),
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         );
   }
   async update(
@@ -426,6 +458,7 @@ export class ElasticPersistence implements IPersistence {
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     _transaction?: ITransaction
   ): Promise<IOutput<unknown, unknown, unknown>> {
+    const selected = this.getSelected(input);
     return Array.isArray(input.item)
       ? this.makePromise(
           input,
@@ -433,12 +466,14 @@ export class ElasticPersistence implements IPersistence {
           await this.client.bulk(
             this.toBulk(
               input.scheme,
-              input.item.map((i) => this.parse(input.scheme, i)),
-              this.parse(input.scheme, input.selectedItem),
+              input.item.map((i) => this.parse(input.scheme, i, selected)),
+              this.parse(input.scheme, input.selectedItem, selected),
               'update',
-              this.generatePageOptions(input)
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         )
       : this.makePromise(
           input,
@@ -446,11 +481,13 @@ export class ElasticPersistence implements IPersistence {
           await this.client.update(
             this.toBody(
               input.scheme,
-              this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem),
-              this.generatePageOptions(input)
+              this.parse(input.scheme, input.item, selected),
+              this.parse(input.scheme, input.selectedItem, selected),
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         );
   }
   async delete(
@@ -459,6 +496,7 @@ export class ElasticPersistence implements IPersistence {
     _transaction?: ITransaction
   ): Promise<IOutput<unknown, unknown, unknown>> {
     // console.log('FUCKING DELETE');
+    const selected = this.getSelected(input);
 
     return Array.isArray(input.item)
       ? this.makePromise(
@@ -467,12 +505,14 @@ export class ElasticPersistence implements IPersistence {
           await this.client.bulk(
             this.toBulk(
               input.scheme,
-              input.item.map((i) => this.parse(input.scheme, i)),
-              this.parse(input.scheme, input.selectedItem),
+              input.item.map((i) => this.parse(input.scheme, i, selected)),
+              this.parse(input.scheme, input.selectedItem, selected),
               'delete',
-              this.generatePageOptions(input)
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         )
       : this.makePromise(
           input,
@@ -480,11 +520,13 @@ export class ElasticPersistence implements IPersistence {
           await this.client.delete(
             this.toBody(
               input.scheme,
-              this.parse(input.scheme, input.item),
-              this.parse(input.scheme, input.selectedItem),
-              this.generatePageOptions(input)
+              this.parse(input.scheme, input.item, selected),
+              this.parse(input.scheme, input.selectedItem, selected),
+              this.generatePageOptions(input),
+              selected
             )
-          )
+          ),
+          selected
         );
   }
 

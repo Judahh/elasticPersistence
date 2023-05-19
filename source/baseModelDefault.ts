@@ -1,19 +1,35 @@
 import { Default, IDefault } from '@flexiblepersistence/default-initializer';
 export default class BaseModelDefault extends Default {
   protected strict = false;
-  protected attributes = {};
-  protected aliasFields = {};
+  protected attributes: any | Array<any> = {};
+  protected aliasFields: any | Array<any> = {};
+  protected selector?: string;
+  protected names?: Array<string>;
+
+  getSelector() {
+    return this.selector;
+  }
+
+  getName(index?: number): string {
+    return Array.isArray(this.attributes) && index != undefined && this.names
+      ? this.names[index]
+      : this.name;
+  }
 
   generateType() {
     this.setType('_doc');
   }
 
-  getAttributes() {
-    return this.attributes;
+  getAttributes(index?: number) {
+    return Array.isArray(this.attributes) && index != undefined
+      ? this.attributes[index]
+      : this.attributes;
   }
 
-  getAliasFields() {
-    return this.aliasFields;
+  getAliasFields(index?: number, aliasFields = this.aliasFields) {
+    return Array.isArray(aliasFields) && index != undefined
+      ? aliasFields[index]
+      : aliasFields;
   }
 
   reverseAliasFields(aliasFields = this.aliasFields): any {
@@ -34,8 +50,14 @@ export default class BaseModelDefault extends Default {
     return newAliasFields;
   }
 
-  reverseParse(input: any, aliasFields = this.aliasFields): any {
-    const newAliasFields = this.reverseAliasFields(aliasFields);
+  reverseParse(
+    input: any,
+    aliasFields = this.aliasFields,
+    index?: number
+  ): any {
+    const newAliasFields = this.reverseAliasFields(
+      this.getAliasFields(index, aliasFields)
+    );
     return this.parse(input, newAliasFields);
   }
 
@@ -55,13 +77,16 @@ export default class BaseModelDefault extends Default {
     );
   }
 
-  parse(input: any, aliasFields = this.aliasFields): any {
+  parse(input: any, aliasFields = this.aliasFields, index?: number): any {
     let output;
     if (Array.isArray(input)) {
       output = [];
-      for (let index = 0; index < input.length; index++) {
-        const element = input[index];
-        output[index] = this.parse(element, aliasFields);
+      for (let aIndex = 0; aIndex < input.length; aIndex++) {
+        const element = input[aIndex];
+        output[aIndex] = this.parse(
+          element,
+          this.getAliasFields(index, aliasFields)
+        );
       }
     } else {
       output = {};
@@ -102,7 +127,10 @@ export default class BaseModelDefault extends Default {
               '$wildcard',
             ].includes(f)
           );
-          let newKey = this.getNestedKey(noFilterKey, aliasFields);
+          let newKey = this.getNestedKey(
+            noFilterKey,
+            this.getAliasFields(index, aliasFields)
+          );
           newKey = newKey || key;
           if (firstFilter) {
             newKey += '.' + firstFilter;
