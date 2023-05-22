@@ -18,8 +18,18 @@ import { ClientOptions as ClientOptions8 } from 'es8';
 export class ElasticPersistenceInfo extends PersistenceInfo {
   elasticOptions?: ClientOptions6 | ClientOptions7 | ClientOptions8;
 
-  private getNodes(connectionType?: string) {
+  private getNodes(info: Info) {
     const nodes: string[] = [];
+    this.host = Array.isArray(this.host)
+      ? this.host
+      : Array.isArray(info.host)
+      ? info.host
+      : this.host;
+    this.port = Array.isArray(this.port)
+      ? this.port
+      : Array.isArray(info.port)
+      ? info.port
+      : this.port;
     if (Array.isArray(this.host) || Array.isArray(this.port)) {
       const hostA = Array.isArray(this.host) ? this.host : [this.host];
 
@@ -32,7 +42,9 @@ export class ElasticPersistenceInfo extends PersistenceInfo {
         const port = portA[index] || portA[portA.length - 1];
 
         nodes.push(
-          (!host.includes('://') ? (connectionType || 'https') + '://' : '') +
+          (!host.includes('://')
+            ? (info.connectionType || 'https') + '://'
+            : '') +
             host +
             ':' +
             (port || 9200)
@@ -41,7 +53,7 @@ export class ElasticPersistenceInfo extends PersistenceInfo {
     } else {
       nodes.push(
         (!this.host.includes('://')
-          ? (connectionType || 'https') + '://'
+          ? (info.connectionType || 'https') + '://'
           : '') +
           this.host +
           ':' +
@@ -57,7 +69,7 @@ export class ElasticPersistenceInfo extends PersistenceInfo {
     elasticOptions?: ClientOptions6 | ClientOptions7 | ClientOptions8
   ) {
     super(info, journaly);
-    const nodes = this.getNodes(info.connectionType);
+    const nodes = this.getNodes(info);
     const object = {};
     if (nodes.length > 1) {
       object['nodes'] = nodes;

@@ -1,6 +1,6 @@
 {
   "name": "@flexiblepersistence/elastic",
-  "version": "0.0.34",
+  "version": "0.0.35",
   "description": "A Elastic implementation for Flexible Persistence's PersistenceAdapter",
   "main": "dist/source/index.js",
   "keywords": [
