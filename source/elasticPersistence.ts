@@ -359,6 +359,7 @@ export class ElasticPersistence implements IPersistence {
     const selected: number | undefined = selector
       ? (input.selectedItem as any)?.[selector] || 0
       : undefined;
+    delete input.selectedItem?.[selector];
     return selected;
   }
 
