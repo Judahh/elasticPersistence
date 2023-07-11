@@ -187,6 +187,7 @@ export class ElasticPersistence implements IPersistence {
     // headers page and pageSize/pagesize
     const key = this.getKey(scheme) || scheme;
     const body: any[] = [];
+    // TODO: check if its working for create, update and delete
     for (const i of input) {
       const method = {};
       method[type] = {
@@ -301,6 +302,20 @@ export class ElasticPersistence implements IPersistence {
     return query;
   }
 
+  jsonToPainless(json) {
+    const painless: string[] = [];
+    if (!json) return painless.join('');
+    for (const key in json) {
+      if (Object.prototype.hasOwnProperty.call(json, key)) {
+        const element = json[key];
+        painless.push(
+          'ctx._source.' + key + '=' + JSON.stringify(element) + ';'
+        );
+      }
+    }
+    return painless.join('');
+  }
+
   toBody(
     model: string,
     input: any,
@@ -314,14 +329,21 @@ export class ElasticPersistence implements IPersistence {
     const type = input._type || this.element[key]?.getType() || '_doc';
     delete input._type;
     // console.log('selectedInput:', selectedInput);
+    const i = input && Object.keys(input).length > 0 ? input : undefined;
+    const painless = this.jsonToPainless(i);
+
     const body = {
       index: this.element[key]?.getName(index) || key,
       type: type,
+      refresh: painless ? true : undefined,
       body:
         selectedInput && Object.keys(selectedInput).length > 0
           ? {
-              script:
-                input && Object.keys(input).length > 0 ? input : undefined,
+              script: painless
+                ? { source: painless }
+                : Object.keys(i).length > 0
+                ? i
+                : undefined,
               query: { bool: this.toBoolQuery(selectedInput) },
             }
           : input,
@@ -479,7 +501,7 @@ export class ElasticPersistence implements IPersistence {
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.update(
+          await this.client.updateByQuery(
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item, selected),
