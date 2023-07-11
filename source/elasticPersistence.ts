@@ -302,15 +302,54 @@ export class ElasticPersistence implements IPersistence {
     return query;
   }
 
-  jsonToPainless(json) {
+  elementToPainless(object) {
+    // ['customer': 'Joe', 'group': 'blah', 'name': 'abc']
+    const painless: string[] = [];
+    if (object)
+      if (typeof object === 'object')
+        for (const key in object) {
+          if (Object.prototype.hasOwnProperty.call(object, key)) {
+            const element = object[key];
+            if (typeof element === 'object') {
+              painless.push(`'${key}'` + ':' + this.elementToPainless(element));
+            } else {
+              painless.push(`'${key}'` + ':' + JSON.stringify(element));
+            }
+          }
+        }
+      else return JSON.stringify(object);
+    return '[' + painless.join(',') + ']';
+  }
+
+  arrayToPainless(array) {
+    // [X, Y]
+    const painless: string[] = [];
+    if (array)
+      for (const o of array) {
+        if (Array.isArray(o)) {
+          painless.push(this.arrayToPainless(o));
+        } else {
+          painless.push(this.elementToPainless(o));
+        }
+      }
+    return '[' + painless.join(',') + ']';
+  }
+
+  jsonToPainless(json, level = 'ctx._source') {
     const painless: string[] = [];
     if (!json) return painless.join('');
     for (const key in json) {
       if (Object.prototype.hasOwnProperty.call(json, key)) {
         const element = json[key];
-        painless.push(
-          'ctx._source.' + key + '=' + JSON.stringify(element) + ';'
-        );
+        if (!Array.isArray(element)) {
+          painless.push(
+            level + '.' + key + '=' + this.elementToPainless(element) + ';'
+          );
+        } else {
+          painless.push(
+            level + '.' + key + `= ${this.arrayToPainless(element)};`
+          );
+        }
       }
     }
     return painless.join('');
