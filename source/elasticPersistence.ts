@@ -540,7 +540,7 @@ export class ElasticPersistence implements IPersistence {
       : this.makePromise(
           input,
           // @ts-ignore
-          await this.client.delete(
+          await this.client.deleteByQuery(
             this.toBody(
               input.scheme,
               this.parse(input.scheme, input.item, selected),
