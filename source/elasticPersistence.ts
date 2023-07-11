@@ -341,7 +341,7 @@ export class ElasticPersistence implements IPersistence {
           ? {
               script: painless
                 ? { source: painless }
-                : Object.keys(i).length > 0
+                : i && Object.keys(i).length > 0
                 ? i
                 : undefined,
               query: { bool: this.toBoolQuery(selectedInput) },
