@@ -305,6 +305,7 @@ export class ElasticPersistence implements IPersistence {
   elementToPainless(object) {
     // ['customer': 'Joe', 'group': 'blah', 'name': 'abc']
     const painless: string[] = [];
+
     if (object)
       if (typeof object === 'object')
         for (const key in object) {
@@ -318,6 +319,7 @@ export class ElasticPersistence implements IPersistence {
           }
         }
       else return JSON.stringify(object);
+    else return 'null';
     return '[' + painless.join(',') + ']';
   }
 
