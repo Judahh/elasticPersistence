@@ -193,6 +193,7 @@ export class ElasticPersistence implements IPersistence {
       method[type] = {
         _index: this.element[key]?.getName(index) || key,
         _type: '_doc',
+        _id: this.generateId(scheme, i, index, options),
         // _id: i._id,
       };
       delete i._index;
@@ -358,11 +359,30 @@ export class ElasticPersistence implements IPersistence {
     return painless.join('');
   }
 
+  generateId(
+    model: string,
+    item,
+    index?: number,
+    options?: { page?: number; pageSize?: number; id?: any }
+  ) {
+    let id = undefined;
+    if (options?.id) {
+      const o = {};
+      o[options.id] = 0;
+      const p = this.parse(model, o, index);
+      for (const key in p) {
+        if (Object.hasOwnProperty.call(p, key)) {
+          id = item[key];
+        }
+      }
+    }
+    return id;
+  }
   toBody(
     model: string,
     input: any,
     selectedInput?: any,
-    options?: { page?: number; pageSize?: number },
+    options?: { page?: number; pageSize?: number; id?: any },
     index?: number
   ): any {
     // TODO: from/size and query
@@ -372,12 +392,14 @@ export class ElasticPersistence implements IPersistence {
     delete input._type;
     // console.log('selectedInput:', selectedInput);
     const i = input && Object.keys(input).length > 0 ? input : undefined;
+    const id = this.generateId(model, i, index, options);
     const painless = this.jsonToPainless(i);
 
     const body = {
       index: this.element[key]?.getName(index) || key,
       type: type,
       refresh: painless ? true : undefined,
+      id,
       body:
         selectedInput && Object.keys(selectedInput).length > 0
           ? {
