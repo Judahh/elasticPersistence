@@ -319,13 +319,14 @@ export class ElasticPersistence implements IPersistence {
           }
         }
       else return JSON.stringify(object);
-    else return 'null';
+    else return JSON.stringify(object);
     return '[' + painless.join(',') + ']';
   }
 
   arrayToPainless(array) {
     // [X, Y]
     const painless: string[] = [];
+    if (array == undefined) return JSON.stringify(array);
     if (array)
       for (const o of array) {
         if (Array.isArray(o)) {
