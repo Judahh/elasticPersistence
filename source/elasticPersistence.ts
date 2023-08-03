@@ -155,6 +155,11 @@ export class ElasticPersistence implements IPersistence {
         ) || hits?._source,
     };
     const result = input.single ? (Array.isArray(hits) ? hits[0] : hits) : hits;
+    let errors = hits?.map?.((value) => value?.index?.error) || [];
+    errors = errors?.filter?.((value) => value) || [];
+    if (errors.length > 0) {
+      throw new Error(errors[0]);
+    }
     const r = await {
       receivedItem: result,
       result,
